@@ -22,7 +22,7 @@ USE_CUDA = True  # torch.cuda.is_available()
 
 
 def run(config_):
-    writer = SummaryWriter("runs/" + "IQN100")
+    writer = SummaryWriter("runs/" + "MADDPG100")
 
     # 生成环境的配置参数
     params = {
@@ -59,6 +59,8 @@ def run(config_):
                                  [1, 1, 1])
     t = 0
     collision = 0
+    success = 0
+    frame = 0
     for ep_i in range(0, config_.n_episodes, config_.n_rollout_threads):
         # 开始迭代，初步设定周期为25000个
         print("Episodes %i-%i of %i" % (ep_i + 1,
@@ -93,6 +95,8 @@ def run(config_):
             # 得到的数据推入replaybuffer
             replay_buffer.push(obs, agent_actions, rewards, next_obs, dones)
 
+            frame += 1
+
             obs = next_obs
             t += config_.n_rollout_threads
             if (len(replay_buffer) >= config_.batch_size and
@@ -114,14 +118,22 @@ def run(config_):
             # 如果结束，退出此环境。以碰撞结束则将碰撞次数加一。
             if dones[0] and dones[1] and dones[2]:
                 print('success!!!')
+                success += 1
                 break
             if dones[3]:
                 if rewards[0] < -400:
                     collision += 1
                 break
-        ep_rews = replay_buffer.get_average_rewards(
-            config_.episode_length * config_.n_rollout_threads)
-    env.close()
+        if ep_i > 20:
+            writer.add_scalar("MADDPG ego RL reward", rewards[0], frame)
+            writer.add_scalar("MADDPG surround1 RL reward", rewards[1], frame)
+            writer.add_scalar("MADDPG surround2 RL reward", rewards[2], frame)
+
+        if ep_i % 100 == 0:
+            writer.add_scalar("Suceess rate", success / 100, frame)
+            writer.add_scalar("Collision Rate", collision / 100, frame)
+            success = 0
+            collision = 0
 
 
 if __name__ == '__main__':
@@ -161,4 +173,9 @@ if __name__ == '__main__':
 
     config = parser.parse_args()
 
+    t0 = time.time()
     run(config)
+
+    t1 = time.time()
+
+    print("Training time: {}min".format(round((t1 - t0) / 60, 2)))
