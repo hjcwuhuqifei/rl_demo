@@ -30,7 +30,7 @@ class CarlaEnvNew(gym.Env):
         self.dt = params['dt']
         self.max_time_episode = params['max_time_episode']
         self.desired_speed = params['desired_speed']
-        self.dests = [[271, -246.3, 0.275307], [258.5, -300, 0.275307], [258.5, -290, 0.275307]]
+        self.dests = [[290, -246.3, 0.275307], [258.5, -300, 0.275307], [258.5, -290, 0.275307]]
 
         # Connect to carla server and get world object
         print('connecting to Carla server...')
@@ -514,12 +514,12 @@ class CarlaEnvNew(gym.Env):
         #     print(abs(person_x - ego_x), abs(person_y - ego_y))
         #     print("ego vehicle speed:", speed)
         #     return True
-        if self.collision:
-            return [self.ego_terminal, self.surround1_terminal, self.surround2_terminal, self.collision]
+        if self.collision_ego or self.collision_surround1 or self.collision_surround2:
+            return [self.ego_terminal, self.surround1_terminal, self.surround2_terminal, True, False]
 
         # If reach maximum timestep
         if self.time_step > self.max_time_episode:
-            return [self.ego_terminal, self.surround1_terminal, self.surround2_terminal, True]
+            return [self.ego_terminal, self.surround1_terminal, self.surround2_terminal, False, True]
 
         # If at destination
         if np.sqrt((ego_x - self.dests[0][0]) ** 2 + (ego_y - self.dests[0][1]) ** 2) < 2:
@@ -534,7 +534,7 @@ class CarlaEnvNew(gym.Env):
             print('surround2 reach goal!!!!!')
             self.surround2_terminal = True
 
-        return [self.ego_terminal, self.surround1_terminal, self.surround2_terminal, False]
+        return [self.ego_terminal, self.surround1_terminal, self.surround2_terminal, False, False]
 
     def _clear_all_actors(self, actor_filters):
         """Clear specific actors."""

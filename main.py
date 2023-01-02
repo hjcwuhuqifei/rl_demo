@@ -121,8 +121,9 @@ def run(config_):
                 success += 1
                 break
             if dones[3]:
-                if rewards[0] < -400:
-                    collision += 1
+                collision += 1
+                break
+            if dones[4]:
                 break
         if ep_i > 20:
             writer.add_scalar("MADDPG ego RL reward", rewards[0], frame)
