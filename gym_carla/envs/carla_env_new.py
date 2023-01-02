@@ -78,7 +78,9 @@ class CarlaEnvNew(gym.Env):
     def reset(self):
         # 重置环境的函数
         # Clear sensor objects
-        self.collision = False
+        self.collision_ego = False
+        self.collision_surround1 = False
+        self.collision_surround2 = False
 
         # Delete sensors, vehicles and walkers
         self._clear_all_actors(['sensor.other.collision', 'sensor.lidar.ray_cast', 'sensor.camera.rgb',
@@ -124,16 +126,24 @@ class CarlaEnvNew(gym.Env):
         transform = carla.Transform(carla.Location(x=0.8, z=1.7))
         self.sensor_ego = self.world.spawn_actor(self.collision_sensor, transform, attach_to=self.ego)
 
-        # self.sensor_surround1 = self.world.spawn_actor(self.collision_sensor, transform, attach_to=self.surround1)
-        # self.sensor_surround2 = self.world.spawn_actor(self.collision_sensor, transform, attach_to=self.surround2)
+        self.sensor_surround1 = self.world.spawn_actor(self.collision_sensor, transform, attach_to=self.surround1)
+        self.sensor_surround2 = self.world.spawn_actor(self.collision_sensor, transform, attach_to=self.surround2)
 
-        def callback(event):
-            self.collision = True
+        def callback_ego(event):
+            self.collision_ego = True
             print('collision!!!!!!!')
 
-        self.sensor_ego.listen(callback)
-        # self.sensor_surround1.listen(callback)
-        # self.sensor_surround2.listen(callback)
+        def callback_surround1(event):
+            self.collision_surround1 = True
+            print('collision!!!!!!!')
+
+        def callback_surround2(event):
+            self.collision_surround2 = True
+            print('collision!!!!!!!')
+
+        self.sensor_ego.listen(callback_ego)
+        self.sensor_surround1.listen(callback_surround1)
+        self.sensor_surround2.listen(callback_surround2)
 
         # self.ego.set_target_velocity(carla.Vector3D(-self.desired_speed, 0, 0))
         # self.surround.set_target_velocity(carla.Vector3D(-self.desired_speed, 0, 0))
@@ -418,12 +428,20 @@ class CarlaEnvNew(gym.Env):
             r_speed = speed - (speed - self.desired_speed) ** 2
         #
         # reward for collision
-        r_collision = 0
+        r_collision_ego = 0
+        r_collision_surround1 = 0
+        r_collision_surround2 = 0
         # ego_x = self.ego.get_transform().location.x
         # ego_y = self.ego.get_transform().location.y
 
-        if self.collision:
-            r_collision = -1
+        if self.collision_ego:
+            r_collision_ego = -1
+
+        if self.collision_surround1:
+            r_collision_surround1 = -1
+
+        if self.collision_surround2:
+            r_collision_surround2 = -1
 
         r_time = 0
         if self.time_step > self.max_time_episode:
@@ -463,9 +481,9 @@ class CarlaEnvNew(gym.Env):
         if np.sqrt((surround2_x - self.dests[2][0]) ** 2 + (surround2_y - self.dests[2][1]) ** 2) < 2:
             r_success_surround2 = 1
 
-        r_ego = 1000 * r_collision + r_acc + 500 * r_success_ego + 200 * r_time
-        r_surround1 = 1000 * r_collision + r_acc1 + 500 * r_success_surround1 + 200 * r_time
-        r_surround2 = 1000 * r_collision + r_acc2 + 500 * r_success_surround2 + 200 * r_time
+        r_ego = 1000 * r_collision_ego + r_acc + 1000 * r_success_ego + r_time * (-self.time_step)
+        r_surround1 = 1000 * r_collision_surround1 + r_acc1 + 1000 * r_success_surround1 + r_time * (-self.time_step)
+        r_surround2 = 1000 * r_collision_surround2 + r_acc2 + 1000 * r_success_surround2 + r_time * (-self.time_step)
         return [r_ego, r_surround1, r_surround2]
 
     def _terminal(self):
