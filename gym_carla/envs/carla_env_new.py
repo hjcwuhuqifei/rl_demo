@@ -29,6 +29,7 @@ class CarlaEnvNew(gym.Env):
 
         self.dt = params['dt']
         self.max_time_episode = params['max_time_episode']
+        self.punish_time_episode = params['punish_time_episode']
         self.desired_speed = params['desired_speed']
         self.dests = [[290, -246.3, 0.275307], [258.5, -300, 0.275307], [258.5, -290, 0.275307]]
 
@@ -404,13 +405,15 @@ class CarlaEnvNew(gym.Env):
         surround2_v_y = surround2_v.y
 
         obs = [[surround1_x - ego_x, surround1_y - ego_y, surround1_v_x, surround1_v_y,
-                surround2_x - ego_x, surround2_y - ego_y, surround2_v_x, surround2_v_y, ego_v_x, ego_v_y],
+                surround2_x - ego_x, surround2_y - ego_y, surround2_v_x, surround2_v_y,
+                self.dests[0][0] - ego_x, self.dests[0][1] - ego_y, ego_v_x, ego_v_y,
+                ],
                [ego_x - surround1_x, ego_y - surround1_y, ego_v_x, ego_v_y,
-                surround2_x - surround1_x, surround2_y - surround1_y, surround2_v_x, surround2_v_y, surround1_v_x,
-                surround1_v_y],
+                surround2_x - surround1_x, surround2_y - surround1_y, surround2_v_x, surround2_v_y,
+                self.dests[1][0] - surround1_x, self.dests[1][1] - surround1_y, surround1_v_x,  surround1_v_y],
                [ego_x - surround2_x, ego_y - surround2_y, ego_v_x, ego_v_y,
-                surround1_x - surround2_x, surround1_y - surround2_y, surround1_v_x, surround1_v_y, surround2_v_x,
-                surround2_v_y]
+                surround1_x - surround2_x, surround1_y - surround2_y, surround1_v_x, surround1_v_y,
+                self.dests[2][0] - surround2_x, self.dests[2][1] - surround2_y, surround2_v_x, surround2_v_y]
                ]
 
         # relative location
@@ -444,7 +447,7 @@ class CarlaEnvNew(gym.Env):
             r_collision_surround2 = -1
 
         r_time = 0
-        if self.time_step > self.max_time_episode:
+        if self.time_step > self.punish_time_episode:
             r_time = -1
 
         # cost for acceleration
