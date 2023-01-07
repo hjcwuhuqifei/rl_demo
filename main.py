@@ -22,7 +22,7 @@ USE_CUDA = True  # torch.cuda.is_available()
 
 
 def run(config_):
-    writer = SummaryWriter("runs/" + "MADDPG100")
+    writer = SummaryWriter("runs/" + "MADDPG105")
 
     # 生成环境的配置参数
     params = {
@@ -40,13 +40,13 @@ def run(config_):
     # 生成环境
     env = gym.make('carla-v_new', params=params)
     # 生成算法网络结构的参数
-    agent_init_params = [{'num_in_pol': 12,
+    agent_init_params = [{'num_in_pol': 10,
                           'num_out_pol': 1,
-                          'num_in_critic': 39}, {'num_in_pol': 12,
+                          'num_in_critic': 33}, {'num_in_pol': 10,
                                                  'num_out_pol': 1,
-                                                 'num_in_critic': 39}, {'num_in_pol': 12,
+                                                 'num_in_critic': 33}, {'num_in_pol': 10,
                                                                         'num_out_pol': 1,
-                                                                        'num_in_critic': 39}]
+                                                                        'num_in_critic': 33}]
     init_dict = {'gamma': 0.95, 'tau': config_.tau, 'lr': config_.lr,
                  'hidden_dim': config_.hidden_dim,
                  'alg_types': ['MADDPG', 'MADDPG', 'MADDPG'],
@@ -56,7 +56,7 @@ def run(config_):
     maddpg = MADDPG(**init_dict)
     # 生成replaybuffer
     replay_buffer = ReplayBuffer(config_.buffer_length, maddpg.nagents,
-                                 [12, 12, 12],
+                                 [10, 10, 10],
                                  [1, 1, 1])
     t = 0
     collision = 0

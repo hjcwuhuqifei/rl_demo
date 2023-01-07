@@ -127,8 +127,8 @@ class MADDPG(object):
                                        dim=1)
         # 这里是目标critic的
         target_value = (rews[agent_i].view(-1, 1) + self.gamma *
-                        curr_agent.target_critic(trgt_vf_in))
-                        # (1 - dones[agent_i].view(-1, 1)))
+                        curr_agent.target_critic(trgt_vf_in) *
+                        (1 - dones[agent_i].view(-1, 1)))
         # view相当于numpy的reshape,torch.view(-1，参数a),就是不知道行数，但知道自己所需要的列数是a吧
 
         if self.alg_types[agent_i] == 'MADDPG':

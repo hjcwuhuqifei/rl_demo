@@ -31,7 +31,7 @@ class CarlaEnvNew(gym.Env):
         self.max_time_episode = params['max_time_episode']
         self.punish_time_episode = params['punish_time_episode']
         self.desired_speed = params['desired_speed']
-        self.dests = [[290, -246.3, 0.275307], [258.5, -300, 0.275307], [258.5, -290, 0.275307]]
+        self.dests = [[290, -246.3, 0.275307], [258.5, -300, 0.275307], [258.5, -280, 0.275307]]
 
         # Connect to carla server and get world object
         print('connecting to Carla server...')
@@ -59,6 +59,10 @@ class CarlaEnvNew(gym.Env):
         # # collision sensor
         self.collision_sensor = self.world.get_blueprint_library().find('sensor.other.collision')
 
+        self.sensor_ego = None
+        self.sensor_surround1 = None
+        self.sensor_surround2 = None
+
         # Set fixed simulation step for synchronous mode
         self.settings = self.world.get_settings()
         self.settings.fixed_delta_seconds = self.dt
@@ -83,9 +87,17 @@ class CarlaEnvNew(gym.Env):
         self.collision_surround1 = False
         self.collision_surround2 = False
 
+        if self.sensor_ego is not None and self.sensor_ego.is_listening:
+            self.sensor_ego.stop()
+            self.sensor_surround1.stop()
+            self.sensor_surround2.stop()
+
+        self.sensor_ego = None
+        self.sensor_surround1 = None
+        self.sensor_surround2 = None
         # Delete sensors, vehicles and walkers
-        self._clear_all_actors(['sensor.other.collision', 'sensor.lidar.ray_cast', 'sensor.camera.rgb',
-                                'sensor.camera.semantic_segmentation', 'vehicle.*', 'controller.ai.walker', 'walker.*'])
+        self._clear_all_actors(['sensor.other.collision',
+                                'vehicle.*'])
 
         # Disable sync mode
         self._set_synchronous_mode(False)
@@ -120,9 +132,9 @@ class CarlaEnvNew(gym.Env):
         self.surround2 = self.world.spawn_actor(self.surround_bp2, self.vehicle_spawn_points2)
         self.surround2.set_autopilot(False)
 
-        self.ego_terminal = False
-        self.surround1_terminal = False
-        self.surround2_terminal = False
+        self.ego_terminal = 0
+        self.surround1_terminal = 0
+        self.surround2_terminal = 0
 
         transform = carla.Transform(carla.Location(x=0.8, z=1.7))
         self.sensor_ego = self.world.spawn_actor(self.collision_sensor, transform, attach_to=self.ego)
@@ -406,14 +418,14 @@ class CarlaEnvNew(gym.Env):
 
         obs = [[surround1_x - ego_x, surround1_y - ego_y, surround1_v_x, surround1_v_y,
                 surround2_x - ego_x, surround2_y - ego_y, surround2_v_x, surround2_v_y,
-                self.dests[0][0] - ego_x, self.dests[0][1] - ego_y, ego_v_x, ego_v_y,
+                ego_v_x, ego_v_y
                 ],
                [ego_x - surround1_x, ego_y - surround1_y, ego_v_x, ego_v_y,
                 surround2_x - surround1_x, surround2_y - surround1_y, surround2_v_x, surround2_v_y,
-                self.dests[1][0] - surround1_x, self.dests[1][1] - surround1_y, surround1_v_x,  surround1_v_y],
+                surround1_v_x,  surround1_v_y],
                [ego_x - surround2_x, ego_y - surround2_y, ego_v_x, ego_v_y,
                 surround1_x - surround2_x, surround1_y - surround2_y, surround1_v_x, surround1_v_y,
-                self.dests[2][0] - surround2_x, self.dests[2][1] - surround2_y, surround2_v_x, surround2_v_y]
+                surround2_v_x, surround2_v_y]
                ]
 
         # relative location
@@ -424,12 +436,24 @@ class CarlaEnvNew(gym.Env):
         # 取得奖励
         """Calculate the step reward."""
         # # reward for speed tracking
-        v = self.ego.get_velocity()
-        speed = np.sqrt(v.x ** 2 + v.y ** 2)
-        r_speed = speed
-        if speed > self.desired_speed:
-            r_speed = speed - (speed - self.desired_speed) ** 2
-        #
+        v_ego = self.ego.get_velocity()
+        speed_ego = np.sqrt(v_ego.x ** 2 + v_ego.y ** 2)
+        r_speed_ego = speed_ego
+        if speed_ego > self.desired_speed:
+            r_speed_ego = speed_ego - (speed_ego - self.desired_speed) ** 2
+
+        v_surround1 = self.surround1.get_velocity()
+        speed_surround1 = np.sqrt(v_surround1.x ** 2 + v_surround1.y ** 2)
+        r_speed_surround1 = speed_surround1
+        if speed_surround1 > self.desired_speed:
+            r_speed_surround1 = speed_surround1 - (speed_surround1 - self.desired_speed) ** 2
+
+        v_surround2 = self.surround2.get_velocity()
+        speed_surround2 = np.sqrt(v_surround2.x ** 2 + v_surround2.y ** 2)
+        r_speed_surround2 = speed_surround2
+        if speed_surround2 > self.desired_speed:
+            r_speed_surround2 = speed_surround2 - (speed_surround2 - self.desired_speed) ** 2
+
         # reward for collision
         r_collision_ego = 0
         r_collision_surround1 = 0
@@ -447,7 +471,7 @@ class CarlaEnvNew(gym.Env):
             r_collision_surround2 = -1
 
         r_time = 0
-        if self.time_step > self.punish_time_episode:
+        if self.time_step > self.max_time_episode:
             r_time = -1
 
         # cost for acceleration
@@ -484,9 +508,9 @@ class CarlaEnvNew(gym.Env):
         if np.sqrt((surround2_x - self.dests[2][0]) ** 2 + (surround2_y - self.dests[2][1]) ** 2) < 2:
             r_success_surround2 = 1
 
-        r_ego = 1000 * r_collision_ego + r_acc + 1000 * r_success_ego + r_time * (-self.time_step)
-        r_surround1 = 1000 * r_collision_surround1 + r_acc1 + 1000 * r_success_surround1 + r_time * (-self.time_step)
-        r_surround2 = 1000 * r_collision_surround2 + r_acc2 + 1000 * r_success_surround2 + r_time * (-self.time_step)
+        r_ego = 1000 * r_collision_ego + r_acc + r_speed_ego + 500 * r_success_ego + r_time * 1000
+        r_surround1 = 1000 * r_collision_surround1 + r_acc1 + r_speed_surround1 + 500 * r_success_surround1 + r_time * 1000
+        r_surround2 = 1000 * r_collision_surround2 + r_acc2 + r_speed_surround2 + 500 * r_success_surround2 + r_time * 1000
         return [r_ego, r_surround1, r_surround2]
 
     def _terminal(self):
@@ -527,15 +551,15 @@ class CarlaEnvNew(gym.Env):
         # If at destination
         if np.sqrt((ego_x - self.dests[0][0]) ** 2 + (ego_y - self.dests[0][1]) ** 2) < 2:
             print('ego reach goal!!!!!')
-            self.ego_terminal = True
+            self.ego_terminal = 1
 
         if np.sqrt((surround1_x - self.dests[1][0]) ** 2 + (surround1_y - self.dests[1][1]) ** 2) < 2:
             print('surround1 reach goal!!!!!')
-            self.surround1_terminal = True
+            self.surround1_terminal = 1
 
         if np.sqrt((surround2_x - self.dests[2][0]) ** 2 + (surround2_y - self.dests[2][1]) ** 2) < 2:
             print('surround2 reach goal!!!!!')
-            self.surround2_terminal = True
+            self.surround2_terminal = 1
 
         return [self.ego_terminal, self.surround1_terminal, self.surround2_terminal, False, False]
 
@@ -543,7 +567,8 @@ class CarlaEnvNew(gym.Env):
         """Clear specific actors."""
         for actor_filter in actor_filters:
             for actor in self.world.get_actors().filter(actor_filter):
+                # print(actor)
                 if actor.is_alive:
-                    if actor.type_id == 'controller.ai.walker':
-                        actor.stop()
+                    # print('kill')
+                    # print(actor)
                     actor.destroy()
