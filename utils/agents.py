@@ -71,7 +71,7 @@ class DDPGAgent(object):
             if explore:
                 action += Variable(Tensor(self.exploration.noise()),
                                    requires_grad=False)
-            action = action.clamp(-1, 1)
+            action = action.clamp(-1, 2)
         return action
 
     def get_params(self):

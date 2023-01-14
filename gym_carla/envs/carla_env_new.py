@@ -31,7 +31,7 @@ class CarlaEnvNew(gym.Env):
         self.max_time_episode = params['max_time_episode']
         self.punish_time_episode = params['punish_time_episode']
         self.desired_speed = params['desired_speed']
-        self.dests = [[290, -246.3, 0.275307], [258.5, -300, 0.275307], [258.5, -280, 0.275307]]
+        self.dests = [[290, -246.3, 0.275307], [258.5, -290, 0.275307], [258.5, -270, 0.275307]]
 
         # Connect to carla server and get world object
         print('connecting to Carla server...')
@@ -111,7 +111,7 @@ class CarlaEnvNew(gym.Env):
             carla.Rotation(pitch=0.000000, yaw=90, roll=0.000000))
         self.ego_x = 255.3
         self.ego_y = -271.3
-        self.ego_v = 0.0001
+        self.ego_v = 6
         self.ego_yaw = 1.5708
         self.index = 1
         waypoint_ego = self.map.get_waypoint(carla.Location(x=255.3, y=-271.3, z=0.275307))
@@ -131,6 +131,10 @@ class CarlaEnvNew(gym.Env):
         self.surround1.set_autopilot(False)
         self.surround2 = self.world.spawn_actor(self.surround_bp2, self.vehicle_spawn_points2)
         self.surround2.set_autopilot(False)
+
+        self.ego.set_target_velocity(carla.Vector3D(0, self.desired_speed, 0))
+        self.surround1.set_target_velocity(carla.Vector3D(0, -self.desired_speed, 0))
+        self.surround2.set_target_velocity(carla.Vector3D(0, -self.desired_speed, 0))
 
         self.ego_terminal = 0
         self.surround1_terminal = 0
@@ -195,26 +199,26 @@ class CarlaEnvNew(gym.Env):
 
     def step(self, actions):
         # Calculate acceleration and steering
-        action_ego = actions[0][0] * 0.5
-        action_surround1 = actions[0][1] * 0.5
-        action_surround2 = actions[0][2] * 0.5
+        action_ego = actions[0][0]
+        action_surround1 = actions[0][1]
+        action_surround2 = actions[0][2]
         if action_ego > 0:
-            throttle_ego = action_ego
+            throttle_ego = action_ego * 0.25
             brake_ego = 0
         else:
-            brake_ego = -action_ego
+            brake_ego = -action_ego * 0.5
             throttle_ego = 0
         if action_surround1 > 0:
-            throttle_surround1 = action_surround1
+            throttle_surround1 = action_surround1 * 0.25
             brake_surround1 = 0
         else:
-            brake_surround1 = -action_surround1
+            brake_surround1 = -action_surround1 * 0.5
             throttle_surround1 = 0
         if action_surround2 > 0:
-            throttle_surround2 = action_surround2
+            throttle_surround2 = action_surround2 * 0.25
             brake_surround2 = 0
         else:
-            brake_surround2 = -action_surround2
+            brake_surround2 = -action_surround2 * 0.5
             throttle_surround2 = 0
 
         # 测试车辆转弯的部分
@@ -252,8 +256,8 @@ class CarlaEnvNew(gym.Env):
             if distance < shortest_distance:
                 shortest_distance = distance
                 self.index = i + 1
-        print(self.index)
-        print(self.ego_v)
+        # print(self.index)
+        # print(self.ego_v)
         waypoints = [[self.waypoints_path[self.index].transform.location.x,
                       self.waypoints_path[self.index].transform.location.y],
                      [self.waypoints_path[self.index + 1].transform.location.x,
@@ -422,7 +426,7 @@ class CarlaEnvNew(gym.Env):
                 ],
                [ego_x - surround1_x, ego_y - surround1_y, ego_v_x, ego_v_y,
                 surround2_x - surround1_x, surround2_y - surround1_y, surround2_v_x, surround2_v_y,
-                surround1_v_x,  surround1_v_y],
+                surround1_v_x, surround1_v_y],
                [ego_x - surround2_x, ego_y - surround2_y, ego_v_x, ego_v_y,
                 surround1_x - surround2_x, surround1_y - surround2_y, surround1_v_x, surround1_v_y,
                 surround2_v_x, surround2_v_y]
@@ -438,21 +442,29 @@ class CarlaEnvNew(gym.Env):
         # # reward for speed tracking
         v_ego = self.ego.get_velocity()
         speed_ego = np.sqrt(v_ego.x ** 2 + v_ego.y ** 2)
+        print('speed_ego')
+        print(speed_ego)
         r_speed_ego = speed_ego
         if speed_ego > self.desired_speed:
             r_speed_ego = speed_ego - (speed_ego - self.desired_speed) ** 2
+        print('r speed rgo')
+        print(r_speed_ego)
 
         v_surround1 = self.surround1.get_velocity()
         speed_surround1 = np.sqrt(v_surround1.x ** 2 + v_surround1.y ** 2)
         r_speed_surround1 = speed_surround1
         if speed_surround1 > self.desired_speed:
             r_speed_surround1 = speed_surround1 - (speed_surround1 - self.desired_speed) ** 2
+        print('r speed 1')
+        print(r_speed_surround1)
 
         v_surround2 = self.surround2.get_velocity()
         speed_surround2 = np.sqrt(v_surround2.x ** 2 + v_surround2.y ** 2)
         r_speed_surround2 = speed_surround2
         if speed_surround2 > self.desired_speed:
             r_speed_surround2 = speed_surround2 - (speed_surround2 - self.desired_speed) ** 2
+        print('r speed 2')
+        print(r_speed_surround2)
 
         # reward for collision
         r_collision_ego = 0
@@ -461,18 +473,9 @@ class CarlaEnvNew(gym.Env):
         # ego_x = self.ego.get_transform().location.x
         # ego_y = self.ego.get_transform().location.y
 
-        if self.collision_ego:
-            r_collision_ego = -1
-
-        if self.collision_surround1:
-            r_collision_surround1 = -1
-
-        if self.collision_surround2:
-            r_collision_surround2 = -1
-
-        r_time = 0
-        if self.time_step > self.max_time_episode:
-            r_time = -1
+        r_time = -1
+        # if self.time_step > self.punish_time_episode:
+        #     r_time = -1
 
         # cost for acceleration
         a = self.ego.get_acceleration()
@@ -496,21 +499,42 @@ class CarlaEnvNew(gym.Env):
         surround2_x = self.surround2.get_transform().location.x
         surround2_y = self.surround2.get_transform().location.y
 
+        if self.collision_ego:
+            r_collision_ego = -1
+
+        if self.collision_surround1:
+            r_collision_surround1 = -1
+
+        if self.collision_surround2:
+            r_collision_surround2 = -1
+
         r_success_ego = 0
         r_success_surround1 = 0
         r_success_surround2 = 0
+        r_success_all = 0
+        r_time_ego = r_time
+        r_time_surround1 = r_time
+        r_time_surround2 = r_time
         if np.sqrt((ego_x - self.dests[0][0]) ** 2 + (ego_y - self.dests[0][1]) ** 2) < 2:
             r_success_ego = 1
+            r_time_ego = 0
 
         if np.sqrt((surround1_x - self.dests[1][0]) ** 2 + (surround1_y - self.dests[1][1]) ** 2) < 2:
             r_success_surround1 = 1
+            r_time_surround1 = 0
 
         if np.sqrt((surround2_x - self.dests[2][0]) ** 2 + (surround2_y - self.dests[2][1]) ** 2) < 2:
             r_success_surround2 = 1
+            r_time_surround2 = 0
 
-        r_ego = 1000 * r_collision_ego + r_acc + r_speed_ego + 500 * r_success_ego + r_time * 1000
-        r_surround1 = 1000 * r_collision_surround1 + r_acc1 + r_speed_surround1 + 500 * r_success_surround1 + r_time * 1000
-        r_surround2 = 1000 * r_collision_surround2 + r_acc2 + r_speed_surround2 + 500 * r_success_surround2 + r_time * 1000
+        if r_success_ego and r_success_surround1 and r_success_surround2:
+            r_success_all = 1
+
+        r_ego = 500 * r_collision_ego + r_acc + r_speed_ego + 500 * r_success_ego + 10000 * r_success_all + r_time_ego * self.time_step
+        r_surround1 = 500 * r_collision_surround1 + r_acc1 + r_speed_surround1 + \
+                      500 * r_success_surround1 + 10000 * r_success_all + r_time_surround1 * self.time_step
+        r_surround2 = 500 * r_collision_surround2 + r_acc2 + r_speed_surround2 + \
+                      500 * r_success_surround2 + 10000 * r_success_all + r_time_surround2 * self.time_step
         return [r_ego, r_surround1, r_surround2]
 
     def _terminal(self):
@@ -542,10 +566,12 @@ class CarlaEnvNew(gym.Env):
         #     print("ego vehicle speed:", speed)
         #     return True
         if self.collision_ego or self.collision_surround1 or self.collision_surround2:
+            print("collision!!!!!!")
             return [self.ego_terminal, self.surround1_terminal, self.surround2_terminal, True, False]
 
         # If reach maximum timestep
         if self.time_step > self.max_time_episode:
+            print("out of time!!!!!!")
             return [self.ego_terminal, self.surround1_terminal, self.surround2_terminal, False, True]
 
         # If at destination

@@ -22,15 +22,15 @@ USE_CUDA = True  # torch.cuda.is_available()
 
 
 def run(config_):
-    writer = SummaryWriter("runs/" + "MADDPG105")
+    writer = SummaryWriter("runs/" + "MADDPG_bigger_network")
 
     # 生成环境的配置参数
     params = {
         'dt': 0.1,  # time interval between two frames
         'port': 2000,  # connection port
         'town': 'Town04',  # which town to simulate
-        'max_time_episode': 1000,  # maximum timesteps per episode
-        'punish_time_episode': 300,  # maximum timesteps per episode
+        'max_time_episode': 500,  # maximum timesteps per episode
+        'punish_time_episode': 200,  # maximum timesteps per episode
         'desired_speed': 6,  # desired speed (m/s)
     }
     torch.manual_seed(config_.seed)
@@ -78,6 +78,8 @@ def run(config_):
             config_.final_noise_scale + (config_.init_noise_scale - config_.final_noise_scale) * explr_pct_remaining)
         maddpg.reset_noise()
 
+        old_frame = frame
+
         for et_i in range(config_.episode_length):
             # 进入一个周期的训练
             # rearrange observations to be per agent, and convert to torch Variable
@@ -89,8 +91,8 @@ def run(config_):
             # convert actions to numpy arrays
             agent_actions = [ac.data.numpy() for ac in torch_agent_actions]
             # rearrange actions to be per environment
-            actions = [[ac[i] for ac in agent_actions] for i in range(config_.n_rollout_threads)]
-            print(actions)
+            actions = [[ac[0] for ac in agent_actions]]
+            # print(actions)
             # 环境运行一步
             next_obs, rewards, dones, infos = env.step(actions)
             # 得到的数据推入replaybuffer
@@ -113,7 +115,7 @@ def run(config_):
                         sample = replay_buffer.sample(config_.batch_size,
                                                       to_gpu=USE_CUDA)
                         # 更新参数
-                        maddpg.update(sample, a_i)
+                        maddpg.update(sample, a_i, logger=writer)
                     maddpg.update_all_targets()
                 maddpg.prep_rollouts(device='cpu')
             # 如果结束，退出此环境。以碰撞结束则将碰撞次数加一。
@@ -126,6 +128,9 @@ def run(config_):
                 break
             if dones[4]:
                 break
+        print("*******************************************************************************************")
+        print(frame - old_frame)
+        print("*******************************************************************************************")
         if ep_i > 20:
             writer.add_scalar("MADDPG ego RL reward", rewards[0], frame)
             writer.add_scalar("MADDPG surround1 RL reward", rewards[1], frame)
@@ -146,10 +151,10 @@ if __name__ == '__main__':
                         help="Name of directory to store " +
                              "model/training contents")
     parser.add_argument("--seed",
-                        default=1, type=int,
+                        default=150, type=int,
                         help="Random seed")
     parser.add_argument("--n_rollout_threads", default=1, type=int)
-    parser.add_argument("--n_training_threads", default=6, type=int)
+    parser.add_argument("--n_training_threads", default=1, type=int)
     parser.add_argument("--buffer_length", default=int(1e6), type=int)
     parser.add_argument("--n_episodes", default=25000, type=int)
     parser.add_argument("--episode_length", default=10000, type=int)
@@ -161,7 +166,7 @@ if __name__ == '__main__':
     parser.add_argument("--init_noise_scale", default=2, type=float)
     parser.add_argument("--final_noise_scale", default=0.0, type=float)
     parser.add_argument("--save_interval", default=1000, type=int)
-    parser.add_argument("--hidden_dim", default=64, type=int)
+    parser.add_argument("--hidden_dim", default=256, type=int)
     parser.add_argument("--lr", default=0.01, type=float)
     parser.add_argument("--tau", default=0.01, type=float)
     parser.add_argument("--agent_alg",
