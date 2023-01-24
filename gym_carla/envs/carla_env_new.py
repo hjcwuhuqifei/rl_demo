@@ -352,6 +352,8 @@ class CarlaEnvNew(gym.Env):
         self.ego_y = self.ego.get_transform().location.y
         self.ego_yaw = self.ego.get_transform().rotation.yaw / 180 * math.pi
         self.ego_v = self.ego.get_velocity().length()
+        # print('ego_v')
+        # print(self.ego_v)
 
         return self._get_obs(), self._get_reward(), self._terminal(), self.info
 
@@ -419,17 +421,22 @@ class CarlaEnvNew(gym.Env):
         surround2_y = surround2_trans.location.y
         surround2_v_x = surround2_v.x
         surround2_v_y = surround2_v.y
+        ego_v = self.ego.get_velocity().length()
+        surround1_v = self.surround1.get_velocity().length()
+        surround2_v = self.surround2.get_velocity().length()
 
-        obs = [[surround1_x - ego_x, surround1_y - ego_y, surround1_v_x, surround1_v_y,
-                surround2_x - ego_x, surround2_y - ego_y, surround2_v_x, surround2_v_y,
-                ego_v_x, ego_v_y
+        obs = [[surround1_x - ego_x, surround1_y - ego_y, surround1_v,  # surround1_v_x, surround1_v_y,
+                surround2_x - ego_x, surround2_y - ego_y, surround2_v,  # surround2_v_x, surround2_v_y,
+                self.dests[0][0] - ego_x, self.dests[0][1] - ego_y, ego_v  # ego_v_x, ego_v_y
                 ],
-               [ego_x - surround1_x, ego_y - surround1_y, ego_v_x, ego_v_y,
-                surround2_x - surround1_x, surround2_y - surround1_y, surround2_v_x, surround2_v_y,
-                surround1_v_x, surround1_v_y],
-               [ego_x - surround2_x, ego_y - surround2_y, ego_v_x, ego_v_y,
-                surround1_x - surround2_x, surround1_y - surround2_y, surround1_v_x, surround1_v_y,
-                surround2_v_x, surround2_v_y]
+               [ego_x - surround1_x, ego_y - surround1_y, ego_v,  # ego_v_x, ego_v_y,
+                surround2_x - surround1_x, surround2_y - surround1_y, surround2_v,  # surround2_v_x, surround2_v_y,
+                self.dests[1][0] - surround1_x, self.dests[1][1] - surround1_y, surround1_v  # surround1_v_x, surround1_v_y
+                ],
+               [surround1_x - surround2_x, surround1_y - surround2_y, surround1_v,  # surround1_v_x, surround1_v_y,
+                ego_x - surround2_x, ego_y - surround2_y, ego_v,  # ego_v_x, ego_v_y,
+                self.dests[2][0] - surround2_x, self.dests[2][1] - surround2_y, surround2_v  # surround2_v_x, surround2_v_y
+                ]
                ]
 
         # relative location
@@ -442,29 +449,29 @@ class CarlaEnvNew(gym.Env):
         # # reward for speed tracking
         v_ego = self.ego.get_velocity()
         speed_ego = np.sqrt(v_ego.x ** 2 + v_ego.y ** 2)
-        print('speed_ego')
-        print(speed_ego)
+        # print('speed_ego')
+        # print(speed_ego)
         r_speed_ego = speed_ego
         if speed_ego > self.desired_speed:
             r_speed_ego = speed_ego - (speed_ego - self.desired_speed) ** 2
-        print('r speed rgo')
-        print(r_speed_ego)
+        # print('r speed rgo')
+        # print(r_speed_ego)
 
         v_surround1 = self.surround1.get_velocity()
         speed_surround1 = np.sqrt(v_surround1.x ** 2 + v_surround1.y ** 2)
         r_speed_surround1 = speed_surround1
         if speed_surround1 > self.desired_speed:
             r_speed_surround1 = speed_surround1 - (speed_surround1 - self.desired_speed) ** 2
-        print('r speed 1')
-        print(r_speed_surround1)
+        # print('r speed 1')
+        # print(r_speed_surround1)
 
         v_surround2 = self.surround2.get_velocity()
         speed_surround2 = np.sqrt(v_surround2.x ** 2 + v_surround2.y ** 2)
         r_speed_surround2 = speed_surround2
         if speed_surround2 > self.desired_speed:
             r_speed_surround2 = speed_surround2 - (speed_surround2 - self.desired_speed) ** 2
-        print('r speed 2')
-        print(r_speed_surround2)
+        # print('r speed 2')
+        # print(r_speed_surround2)
 
         # reward for collision
         r_collision_ego = 0
@@ -515,26 +522,30 @@ class CarlaEnvNew(gym.Env):
         r_time_ego = r_time
         r_time_surround1 = r_time
         r_time_surround2 = r_time
-        if np.sqrt((ego_x - self.dests[0][0]) ** 2 + (ego_y - self.dests[0][1]) ** 2) < 2:
+        distance_ego = np.sqrt((ego_x - self.dests[0][0]) ** 2 + (ego_y - self.dests[0][1]) ** 2)
+        distance_surround1 = np.sqrt((surround1_x - self.dests[1][0]) ** 2 + (surround1_y - self.dests[1][1]) ** 2)
+        distance_surround2 = np.sqrt((surround2_x - self.dests[2][0]) ** 2 + (surround2_y - self.dests[2][1]) ** 2)
+        if distance_ego < 2:
             r_success_ego = 1
             r_time_ego = 0
 
-        if np.sqrt((surround1_x - self.dests[1][0]) ** 2 + (surround1_y - self.dests[1][1]) ** 2) < 2:
+        if distance_surround1 < 2:
             r_success_surround1 = 1
             r_time_surround1 = 0
 
-        if np.sqrt((surround2_x - self.dests[2][0]) ** 2 + (surround2_y - self.dests[2][1]) ** 2) < 2:
+        if distance_surround2 < 2:
             r_success_surround2 = 1
             r_time_surround2 = 0
 
         if r_success_ego and r_success_surround1 and r_success_surround2:
             r_success_all = 1
 
-        r_ego = 500 * r_collision_ego + r_acc + r_speed_ego + 500 * r_success_ego + 10000 * r_success_all + r_time_ego * self.time_step
-        r_surround1 = 500 * r_collision_surround1 + r_acc1 + r_speed_surround1 + \
-                      500 * r_success_surround1 + 10000 * r_success_all + r_time_surround1 * self.time_step
-        r_surround2 = 500 * r_collision_surround2 + r_acc2 + r_speed_surround2 + \
-                      500 * r_success_surround2 + 10000 * r_success_all + r_time_surround2 * self.time_step
+        r_ego = 50 * r_collision_ego + r_acc + r_speed_ego + 50 * r_success_ego + 100 * r_success_all + \
+                r_time_ego * self.time_step * 0.1 - distance_ego
+        r_surround1 = 50 * r_collision_surround1 + r_acc1 + r_speed_surround1 + 50 * r_success_surround1 + \
+                      100 * r_success_all + r_time_surround1 * self.time_step * 0.1 - distance_surround1
+        r_surround2 = 50 * r_collision_surround2 + r_acc2 + r_speed_surround2 + 50 * r_success_surround2 + \
+                      100 * r_success_all + r_time_surround2 * self.time_step * 0.1 - distance_surround2
         return [r_ego, r_surround1, r_surround2]
 
     def _terminal(self):

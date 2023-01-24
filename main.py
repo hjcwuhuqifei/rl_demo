@@ -22,7 +22,7 @@ USE_CUDA = True  # torch.cuda.is_available()
 
 
 def run(config_):
-    writer = SummaryWriter("runs/" + "MADDPG_bigger_network")
+    writer = SummaryWriter("runs/" + "MADDPG_reward")
 
     # 生成环境的配置参数
     params = {
@@ -40,13 +40,13 @@ def run(config_):
     # 生成环境
     env = gym.make('carla-v_new', params=params)
     # 生成算法网络结构的参数
-    agent_init_params = [{'num_in_pol': 10,
+    agent_init_params = [{'num_in_pol': 9,
                           'num_out_pol': 1,
-                          'num_in_critic': 33}, {'num_in_pol': 10,
+                          'num_in_critic': 30}, {'num_in_pol': 9,
                                                  'num_out_pol': 1,
-                                                 'num_in_critic': 33}, {'num_in_pol': 10,
+                                                 'num_in_critic': 30}, {'num_in_pol': 9,
                                                                         'num_out_pol': 1,
-                                                                        'num_in_critic': 33}]
+                                                                        'num_in_critic': 30}]
     init_dict = {'gamma': 0.95, 'tau': config_.tau, 'lr': config_.lr,
                  'hidden_dim': config_.hidden_dim,
                  'alg_types': ['MADDPG', 'MADDPG', 'MADDPG'],
@@ -56,7 +56,7 @@ def run(config_):
     maddpg = MADDPG(**init_dict)
     # 生成replaybuffer
     replay_buffer = ReplayBuffer(config_.buffer_length, maddpg.nagents,
-                                 [10, 10, 10],
+                                 [9, 9, 9],
                                  [1, 1, 1])
     t = 0
     collision = 0
@@ -130,6 +130,7 @@ def run(config_):
                 break
         print("*******************************************************************************************")
         print(frame - old_frame)
+        print(rewards)
         print("*******************************************************************************************")
         if ep_i > 20:
             writer.add_scalar("MADDPG ego RL reward", rewards[0], frame)
@@ -151,7 +152,7 @@ if __name__ == '__main__':
                         help="Name of directory to store " +
                              "model/training contents")
     parser.add_argument("--seed",
-                        default=150, type=int,
+                        default=100, type=int,
                         help="Random seed")
     parser.add_argument("--n_rollout_threads", default=1, type=int)
     parser.add_argument("--n_training_threads", default=1, type=int)
