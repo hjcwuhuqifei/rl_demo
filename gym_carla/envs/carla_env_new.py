@@ -203,22 +203,22 @@ class CarlaEnvNew(gym.Env):
         action_surround1 = actions[0][1]
         action_surround2 = actions[0][2]
         if action_ego > 0:
-            throttle_ego = action_ego * 0.25
+            throttle_ego = action_ego * 0.4
             brake_ego = 0
         else:
-            brake_ego = -action_ego * 0.5
+            brake_ego = -action_ego * 0.8
             throttle_ego = 0
         if action_surround1 > 0:
-            throttle_surround1 = action_surround1 * 0.25
+            throttle_surround1 = action_surround1 * 0.4
             brake_surround1 = 0
         else:
-            brake_surround1 = -action_surround1 * 0.5
+            brake_surround1 = -action_surround1 * 0.8
             throttle_surround1 = 0
         if action_surround2 > 0:
-            throttle_surround2 = action_surround2 * 0.25
+            throttle_surround2 = action_surround2 * 0.4
             brake_surround2 = 0
         else:
-            brake_surround2 = -action_surround2 * 0.5
+            brake_surround2 = -action_surround2 * 0.8
             throttle_surround2 = 0
 
         # 测试车辆转弯的部分
@@ -439,6 +439,29 @@ class CarlaEnvNew(gym.Env):
                 ]
                ]
 
+        # distance_ego_to_surround1 = np.sqrt((surround1_x - ego_x) ** 2 + (surround1_y - ego_y) ** 2)
+        # distance_ego_to_surround2 = np.sqrt((surround2_x - ego_x) ** 2 + (surround2_y - ego_y) ** 2)
+        # distance_surround1_to_surround2 = np.sqrt((surround2_x - surround1_x) ** 2 + (surround2_y - surround1_y) ** 2)
+        # distance_ego_to_goal = np.sqrt((self.dests[0][0] - ego_x) ** 2 + (self.dests[0][1] - ego_y) ** 2)
+        # distance_surround1_to_goal = np.sqrt((self.dests[1][0] - surround1_x) ** 2 + (self.dests[1][1] - surround1_y) ** 2)
+        # distance_surround2_to_goal = np.sqrt((self.dests[2][0] - surround2_x) ** 2 + (self.dests[2][1] - surround2_y) ** 2)
+        #
+        # obs = [[distance_ego_to_surround1, surround1_v,  # surround1_v_x, surround1_v_y,
+        #         distance_ego_to_surround2, surround2_v,  # surround2_v_x, surround2_v_y,
+        #         distance_ego_to_goal, ego_v  # ego_v_x, ego_v_y
+        #         ],
+        #        [distance_ego_to_surround1, ego_v,  # ego_v_x, ego_v_y,
+        #         distance_surround1_to_surround2, surround2_v,  # surround2_v_x, surround2_v_y,
+        #         distance_surround1_to_goal, surround1_v
+        #         # surround1_v_x, surround1_v_y
+        #         ],
+        #        [distance_surround1_to_surround2, surround1_v,  # surround1_v_x, surround1_v_y,
+        #         distance_ego_to_surround2, ego_v,  # ego_v_x, ego_v_y,
+        #         distance_surround2_to_goal, surround2_v
+        #         # surround2_v_x, surround2_v_y
+        #         ]
+        #        ]
+
         # relative location
 
         return obs
@@ -541,11 +564,11 @@ class CarlaEnvNew(gym.Env):
             r_success_all = 1
 
         r_ego = 50 * r_collision_ego + r_acc + r_speed_ego + 50 * r_success_ego + 100 * r_success_all + \
-                r_time_ego * self.time_step * 0.1 - distance_ego
+                r_time_ego * 50 - distance_ego
         r_surround1 = 50 * r_collision_surround1 + r_acc1 + r_speed_surround1 + 50 * r_success_surround1 + \
-                      100 * r_success_all + r_time_surround1 * self.time_step * 0.1 - distance_surround1
+                      100 * r_success_all + r_time_surround1 * 50 - distance_surround1
         r_surround2 = 50 * r_collision_surround2 + r_acc2 + r_speed_surround2 + 50 * r_success_surround2 + \
-                      100 * r_success_all + r_time_surround2 * self.time_step * 0.1 - distance_surround2
+                      100 * r_success_all + r_time_surround2 * 50 - distance_surround2
         return [r_ego, r_surround1, r_surround2]
 
     def _terminal(self):

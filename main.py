@@ -22,7 +22,7 @@ USE_CUDA = True  # torch.cuda.is_available()
 
 
 def run(config_):
-    writer = SummaryWriter("runs/" + "MADDPG_reward")
+    writer = SummaryWriter("runs/" + "MADDPG_shiyan")
 
     # 生成环境的配置参数
     params = {
@@ -31,7 +31,7 @@ def run(config_):
         'town': 'Town04',  # which town to simulate
         'max_time_episode': 500,  # maximum timesteps per episode
         'punish_time_episode': 200,  # maximum timesteps per episode
-        'desired_speed': 6,  # desired speed (m/s)
+        'desired_speed': 5,  # desired speed (m/s)
     }
     torch.manual_seed(config_.seed)
     np.random.seed(config_.seed)
@@ -142,6 +142,8 @@ def run(config_):
             writer.add_scalar("Collision Rate", collision / 100, frame)
             success = 0
             collision = 0
+        if frame > 100000*30:
+            break
 
 
 if __name__ == '__main__':
@@ -152,7 +154,7 @@ if __name__ == '__main__':
                         help="Name of directory to store " +
                              "model/training contents")
     parser.add_argument("--seed",
-                        default=100, type=int,
+                        default=1, type=int,
                         help="Random seed")
     parser.add_argument("--n_rollout_threads", default=1, type=int)
     parser.add_argument("--n_training_threads", default=1, type=int)
@@ -161,14 +163,14 @@ if __name__ == '__main__':
     parser.add_argument("--episode_length", default=10000, type=int)
     parser.add_argument("--steps_per_update", default=100, type=int)
     parser.add_argument("--batch_size",
-                        default=1024, type=int,
+                        default=256, type=int,
                         help="Batch size for model training")
     parser.add_argument("--n_exploration_eps", default=25000, type=int)
-    parser.add_argument("--init_noise_scale", default=2, type=float)
+    parser.add_argument("--init_noise_scale", default=0.2, type=float)
     parser.add_argument("--final_noise_scale", default=0.0, type=float)
     parser.add_argument("--save_interval", default=1000, type=int)
-    parser.add_argument("--hidden_dim", default=256, type=int)
-    parser.add_argument("--lr", default=0.01, type=float)
+    parser.add_argument("--hidden_dim", default=64, type=int)
+    parser.add_argument("--lr", default=0.001, type=float)
     parser.add_argument("--tau", default=0.01, type=float)
     parser.add_argument("--agent_alg",
                         default="MADDPG", type=str,

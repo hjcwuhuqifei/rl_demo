@@ -4,6 +4,7 @@ from torch.optim import Adam
 from .networks import MLPNetwork
 from .misc import hard_update, gumbel_softmax, onehot_from_logits
 from .noise import OUNoise
+from torch.optim import lr_scheduler
 
 class DDPGAgent(object):
     """
@@ -36,6 +37,8 @@ class DDPGAgent(object):
         hard_update(self.target_critic, self.critic)
         self.policy_optimizer = Adam(self.policy.parameters(), lr=lr)
         self.critic_optimizer = Adam(self.critic.parameters(), lr=lr)
+        self.scheduler_policy = lr_scheduler.CosineAnnealingLR(self.policy_optimizer, 100000*30, eta_min=0, last_epoch=-1)
+        self.scheduler_critic = lr_scheduler.CosineAnnealingLR(self.critic_optimizer, 100000*30, eta_min=0, last_epoch=-1)
         if not discrete_action:
             self.exploration = OUNoise(num_out_pol)
         else:

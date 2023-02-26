@@ -1,0 +1,54 @@
+2023.2.26
+第一次收敛，但是在固定对向车初始位置和速度的情况下。
+数据为MADDPG_shiyan。
+采用了缘的lr下降，出现了收敛，但是pol的loss较大，在后期为过拟合的情况。
+采用的参数为
+params = {
+        'dt': 0.1,  # time interval between two frames
+        'port': 2000,  # connection port
+        'town': 'Town04',  # which town to simulate
+        'max_time_episode': 500,  # maximum timesteps per episode
+        'punish_time_episode': 200,  # maximum timesteps per episode
+        'desired_speed': 5,  # desired speed (m/s)
+    }
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--env_id", default='sattr', type=str, help="Name of environment")
+    parser.add_argument("--model_name", default='MADDPG', type=str,
+                        help="Name of directory to store " +
+                             "model/training contents")
+    parser.add_argument("--seed",
+                        default=1, type=int,
+                        help="Random seed")
+    parser.add_argument("--n_rollout_threads", default=1, type=int)
+    parser.add_argument("--n_training_threads", default=1, type=int)
+    parser.add_argument("--buffer_length", default=int(1e6), type=int)
+    parser.add_argument("--n_episodes", default=25000, type=int)
+    parser.add_argument("--episode_length", default=10000, type=int)
+    parser.add_argument("--steps_per_update", default=100, type=int)
+    parser.add_argument("--batch_size",
+                        default=256, type=int,
+                        help="Batch size for model training")
+    parser.add_argument("--n_exploration_eps", default=25000, type=int)
+    parser.add_argument("--init_noise_scale", default=0.2, type=float)
+    parser.add_argument("--final_noise_scale", default=0.0, type=float)
+    parser.add_argument("--save_interval", default=1000, type=int)
+    parser.add_argument("--hidden_dim", default=64, type=int)
+    parser.add_argument("--lr", default=0.001, type=float)
+    parser.add_argument("--tau", default=0.01, type=float)
+    parser.add_argument("--agent_alg",
+                        default="MADDPG", type=str,
+                        choices=['MADDPG', 'DDPG'])
+    parser.add_argument("--adversary_alg",
+                        default="MADDPG", type=str,
+                        choices=['MADDPG', 'DDPG'])
+    parser.add_argument("--discrete_action",
+                        action='store_true')
+
+	r_ego = 50 * r_collision_ego + r_acc + r_speed_ego + 50 * r_success_ego + 100 * r_success_all + \
+                r_time_ego * 50 - distance_ego
+        r_surround1 = 50 * r_collision_surround1 + r_acc1 + r_speed_surround1 + 50 * r_success_surround1 + \
+                      100 * r_success_all + r_time_surround1 * 50 - distance_surround1
+        r_surround2 = 50 * r_collision_surround2 + r_acc2 + r_speed_surround2 + 50 * r_success_surround2 + \
+                      100 * r_success_all + r_time_surround2 * 50 - distance_surround2
+
